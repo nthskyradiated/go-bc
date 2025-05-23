@@ -22,7 +22,7 @@ import (
 // 1. The hash must start with a certain number of zeros
 // 2. The hash must be less than a target value
 
-const Difficulty = 12
+const Difficulty = 18
 type ProofOfWork struct {
 	Block  *Block
 	Target *big.Int
@@ -53,7 +53,7 @@ func (pow *ProofOfWork) Run() (int, []byte) {
 	for nonce < math.MaxInt64 {
 		data := pow.PrepareData(nonce)
 		hash = sha256.Sum256(data)
-		// fmt.Printf("Nonce: %d, Hash: %x\n", nonce, hash)
+		fmt.Printf("Nonce: %d, Hash: %x\n", nonce, hash)
 		initHash.SetBytes(hash[:])
 		if initHash.Cmp(pow.Target) == -1 {
 			break
