@@ -2,7 +2,6 @@ package wallet
 
 import (
 	"bytes"
-	"crypto/elliptic"
 	"encoding/gob"
 	"log"
 	"os"
@@ -43,34 +42,59 @@ func (ws Wallets) GetWallet(address string) Wallet {
 	return *ws.Wallets[address]
 }
 
+type SerializedWallet struct {
+	PrivateKey []byte
+	PublicKey  []byte
+}
+
+type SerializedWallets struct {
+	Wallets map[string]SerializedWallet
+}
+
 func (ws *Wallets) LoadFile() error {
 	if _, err := os.Stat(walletFile); os.IsNotExist(err) {
 		return err
 	}
-
-	var wallets Wallets
 
 	fileContent, err := os.ReadFile(walletFile)
 	if err != nil {
 		return err
 	}
 
-	gob.Register(elliptic.P256())
+	var serialized SerializedWallets
 	decoder := gob.NewDecoder(bytes.NewReader(fileContent))
-	err = decoder.Decode(&wallets)
+	err = decoder.Decode(&serialized)
 	if err != nil {
 		return err
 	}
-	ws.Wallets = wallets.Wallets
+
+	wallets := make(map[string]*Wallet)
+	for addr, data := range serialized.Wallets {
+		wallet := &Wallet{}
+		wallet.LoadFromBytes(data.PrivateKey, data.PublicKey)
+		wallets[addr] = wallet
+	}
+
+	ws.Wallets = wallets
 	return nil
 }
 
 func (ws *Wallets) SaveFile() {
-	var content bytes.Buffer
+	serialized := SerializedWallets{
+		Wallets: make(map[string]SerializedWallet),
+	}
 
-	gob.Register(elliptic.P256())
+	for addr, wallet := range ws.Wallets {
+		privKey, pubKey := wallet.Bytes()
+		serialized.Wallets[addr] = SerializedWallet{
+			PrivateKey: privKey,
+			PublicKey:  pubKey,
+		}
+	}
+
+	var content bytes.Buffer
 	encoder := gob.NewEncoder(&content)
-	err := encoder.Encode(ws)
+	err := encoder.Encode(serialized)
 	if err != nil {
 		log.Panic(err)
 	}

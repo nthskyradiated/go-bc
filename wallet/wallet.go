@@ -6,17 +6,19 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"log"
+	"math/big"
 
 	"golang.org/x/crypto/ripemd160"
 )
 
 const (
 	checksumLength = 4
-	version = byte(0x00)
+	version        = byte(0x00)
 )
+
 type Wallet struct {
 	PrivateKey ecdsa.PrivateKey
-	PublicKey []byte
+	PublicKey  []byte
 }
 
 func (w Wallet) Address() []byte {
@@ -25,17 +27,17 @@ func (w Wallet) Address() []byte {
 	checksum := Checksum(versionedPayload)
 	fullPayload := append(versionedPayload, checksum...)
 	address := Base58Encode(fullPayload)
-	
+
 	return address
 }
 
-func NewKeyPair() (ecdsa.PrivateKey, []byte)  {
+func NewKeyPair() (ecdsa.PrivateKey, []byte) {
 	curve := elliptic.P256()
 	private, err := ecdsa.GenerateKey(curve, rand.Reader)
 	if err != nil {
 		log.Panic(err)
 	}
-	
+
 	public := append(private.PublicKey.X.Bytes(), private.PublicKey.Y.Bytes()...)
 	return *private, public
 
@@ -65,4 +67,22 @@ func Checksum(payload []byte) []byte {
 	hash := sha256.Sum256(payload)
 	hash = sha256.Sum256(hash[:])
 	return hash[:checksumLength]
+}
+
+func (w *Wallet) Bytes() ([]byte, []byte) {
+	return w.PrivateKey.D.Bytes(), w.PublicKey
+}
+
+func (w *Wallet) LoadFromBytes(privKey, pubKey []byte) {
+	curve := elliptic.P256()
+	x, y := elliptic.Unmarshal(curve, pubKey)
+
+	priv := new(ecdsa.PrivateKey)
+	priv.PublicKey.Curve = curve
+	priv.PublicKey.X = x
+	priv.PublicKey.Y = y
+	priv.D = new(big.Int).SetBytes(privKey)
+
+	w.PrivateKey = *priv
+	w.PublicKey = pubKey
 }
