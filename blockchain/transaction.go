@@ -15,16 +15,8 @@ type Transaction struct {
 	Outputs []TXOutput
 }
 
-type TXInput struct {
-	ID       []byte
-	OutIndex int
-	Sig      string
-}
-
-// * TODO: implement the script
-type TXOutput struct {
-	Value        int
-	ScriptPubKey string
+func (tx *Transaction) IsCoinbase() bool {
+	return len(tx.Inputs) == 1 && len(tx.Inputs[0].ID) == 0 && tx.Inputs[0].OutIndex == -1
 }
 
 func (tx *Transaction) SetID() {
@@ -76,16 +68,4 @@ func CoinbaseTx(to, data string) *Transaction {
 	tx := Transaction{nil, []TXInput{txin}, []TXOutput{txout}}
 	tx.SetID()
 	return &tx
-}
-
-func (tx *Transaction) IsCoinbase() bool {
-	return len(tx.Inputs) == 1 && len(tx.Inputs[0].ID) == 0 && tx.Inputs[0].OutIndex == -1
-}
-
-func (in *TXInput) CanUnlock(data string) bool {
-	return in.Sig == data
-}
-
-func (out *TXOutput) CanBeUnlocked(data string) bool {
-	return out.ScriptPubKey == data
 }
