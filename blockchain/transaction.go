@@ -110,7 +110,7 @@ func (tx *Transaction) Verify(prevTXs map[string]Transaction) bool {
 		x := new(big.Int).SetBytes(input.PubKey[:len(input.PubKey)/2])
 		y := new(big.Int).SetBytes(input.PubKey[len(input.PubKey)/2:])
 
-		rawPubKey := ecdsa.PublicKey{curve, x, y}
+		rawPubKey := ecdsa.PublicKey{Curve: curve, X: x, Y: y}
 
 		if !ecdsa.Verify(&rawPubKey, txCopy.ID, r, s) {
 			return false

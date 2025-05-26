@@ -59,7 +59,7 @@ func (cli *CommandLine) printChain() {
 		pow := blockchain.NewProofOfWork(block)
 		fmt.Printf("PoW: %s\n", strconv.FormatBool(pow.Validate()))
 		for _, tx := range block.Transactions {
-			fmt.Printf("Transaction ID: %x\n", tx.ID)
+			fmt.Println(tx)
 		}
 		fmt.Println()
 		if len(block.PrevHash) == 0 {
@@ -95,8 +95,11 @@ func (cli *CommandLine) getbalance(address string) {
 }
 
 func (cli *CommandLine) send(from, to string, amount int) {
-		if !wallet.ValidateAddress(from) || !wallet.ValidateAddress(to) {
-		log.Panicf("Invalid address: from %s, to %s", from, to)
+		if !wallet.ValidateAddress(to) {
+		log.Panic("Address is not Valid")	
+	}
+	if !wallet.ValidateAddress(from) {
+		log.Panic("Address is not Valid")	
 	}
 	chain := blockchain.ContinueBlockChain(from)
 	defer chain.Database.Close()
