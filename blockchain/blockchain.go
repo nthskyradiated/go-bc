@@ -34,7 +34,7 @@ func DBExists() bool {
 	return true
 }
 
-func (bc *BlockChain) AddBlock(transactions []*Transaction) {
+func (bc *BlockChain) AddBlock(transactions []*Transaction) *Block{
 	var lastHash []byte
 	err := bc.Database.View(func(txn *badger.Txn) error {
 		item, err := txn.Get([]byte("lh"))
@@ -55,6 +55,7 @@ func (bc *BlockChain) AddBlock(transactions []*Transaction) {
 		return err
 	})
 	HandleError(err)
+	return newBlock
 }
 
 func NewBlockChain(address string) *BlockChain {
@@ -173,16 +174,39 @@ func (chain *BlockChain) FindUnspentTransactions(pubKeyHash []byte) []Transactio
 	return unspentTxs
 }
 
-func (chain *BlockChain) FindUTXO(pubKeyHash []byte) []TxOutput {
-	var UTXOs []TxOutput
-	unspentTxs := chain.FindUnspentTransactions(pubKeyHash)
-	for _, tx := range unspentTxs {
-		for _, out := range tx.Outputs {
-			if out.IsLockedWithKey(pubKeyHash) {
-				UTXOs = append(UTXOs, out)
-			}
+func (chain *BlockChain) FindUTXO() map[string]TxOutputs {
+	UTXOs := make(map[string]TxOutputs) 
+	spentTxos := make(map[string][]int)
+	iter := chain.Iterator()
+	for {
+		block := iter.Next()
+		for _, tx := range block.Transactions {
+			txID := hex.EncodeToString(tx.ID)
+
+			Outputs:
+			for outIdx, out := range tx.Outputs {
+				if spentTxos[txID] != nil {
+					for _, spentOutIdx := range spentTxos[txID] {
+						if spentOutIdx == outIdx {
+							continue Outputs
+						}
+					}
+				}
+				outs := UTXOs[txID]
+				outs.Outputs = append(outs.Outputs, out)
+				UTXOs[txID] = outs
 		}
+			if !tx.IsCoinbase() {
+				for _, in := range tx.Inputs {
+						inID := hex.EncodeToString(in.ID)
+						spentTxos[inID] = append(spentTxos[inID], in.OutIndex)
+				}
+			}
 	}
+		if len(block.PrevHash) == 0 {
+			break
+		}
+	}	
 	return UTXOs
 }
 
