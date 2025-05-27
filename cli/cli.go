@@ -74,7 +74,7 @@ func (cli *CommandLine) createblockchain(address string) {
 		log.Panicf("Invalid address: %s", address)
 	}
 	chain := blockchain.NewBlockChain(address)
-	chain.Database.Close()
+	defer chain.Database.Close()
 
 	UTXOSet := blockchain.UTXOSet{Blockchain: chain}
 	UTXOSet.Reindex()
