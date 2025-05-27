@@ -38,7 +38,7 @@ func ValidateAddress(address string) bool {
 	version := pubKeyHash[0]
 	pubKeyHash = pubKeyHash[1 : len(pubKeyHash)-checksumLength]
 	targetChecksum := Checksum(append([]byte{version}, pubKeyHash...))
-	return bytes.Compare(actualChecksum, targetChecksum) == 0
+	return bytes.Equal(actualChecksum, targetChecksum)
 
 }
 
@@ -49,7 +49,7 @@ func NewKeyPair() (ecdsa.PrivateKey, []byte) {
 		log.Panic(err)
 	}
 
-	public := append(private.PublicKey.X.Bytes(), private.PublicKey.Y.Bytes()...)
+	public := elliptic.Marshal(curve, private.PublicKey.X, private.PublicKey.Y)
 	return *private, public
 
 }
