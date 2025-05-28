@@ -18,9 +18,9 @@ func (cli *CommandLine) printUsage() {
 	fmt.Println("  createblockchain -address ADDRESS - Create a blockchain and send genesis block reward to ADDRESS")
 	fmt.Println("  print - Print the blockchain")
 	fmt.Println("  send -from FROM -to TO -amount AMOUNT - Send amount from one address to another")
-	fmt.Println(" createwallet - Create a new Wallet")
-	fmt.Println(" listaddresses - List the addresses in our wallet file")
-	fmt.Println(" reindexutxo - Rebuilds the UTXO set")
+	fmt.Println("  createwallet - Create a new Wallet")
+	fmt.Println("  listaddresses - List the addresses in our wallet file")
+	fmt.Println("  reindexutxo - Rebuilds the UTXO set")
 }
 
 func (cli *CommandLine) validateArgs() {
@@ -119,8 +119,10 @@ func (cli *CommandLine) send(from, to string, amount int) {
 	chain := blockchain.ContinueBlockChain(from)
 	UTXOSet := blockchain.UTXOSet{Blockchain: chain}
 	defer chain.Database.Close()
+
 	tx := blockchain.NewTransaction(from, to, amount, &UTXOSet)
-	block := chain.AddBlock([]*blockchain.Transaction{tx})
+	cbTx := blockchain.CoinbaseTx(from, "")
+	block := chain.AddBlock([]*blockchain.Transaction{cbTx, tx})
 	UTXOSet.Update(block)
 	fmt.Println("Transaction successful!")
 }
