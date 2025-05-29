@@ -2,21 +2,23 @@ package wallet
 
 import (
 	"bytes"
+	"crypto/elliptic"
 	"encoding/gob"
+	"fmt"
 	"log"
 	"os"
 )
 
-const walletFile = "./tmp/wallets.data"
+const walletFile = "./tmp/wallets_%s.data"
 
 type Wallets struct {
 	Wallets map[string]*Wallet
 }
 
-func NewWallets() (*Wallets, error) {
+func NewWallets(nodeId string) (*Wallets, error) {
 	ws := Wallets{}
 	ws.Wallets = make(map[string]*Wallet)
-	err := ws.LoadFile()
+	err := ws.LoadFile(nodeId)
 	return &ws, err
 
 }
@@ -25,8 +27,6 @@ func (ws *Wallets) AddWallet() string {
 	wallet := MakeWallet()
 	address := string(wallet.Address())
 	ws.Wallets[address] = wallet
-	ws.SaveFile()
-	log.Printf("New wallet created with address: %s", address)
 	return address
 }
 
@@ -42,59 +42,41 @@ func (ws Wallets) GetWallet(address string) Wallet {
 	return *ws.Wallets[address]
 }
 
-type SerializedWallet struct {
-	PrivateKey []byte
-	PublicKey  []byte
-}
-
-type SerializedWallets struct {
-	Wallets map[string]SerializedWallet
-}
-
-func (ws *Wallets) LoadFile() error {
+func (ws *Wallets) LoadFile(nodeId string) error {
+	walletFile := fmt.Sprintf(walletFile, nodeId)
 	if _, err := os.Stat(walletFile); os.IsNotExist(err) {
 		return err
 	}
+
+	var wallets Wallets
 
 	fileContent, err := os.ReadFile(walletFile)
 	if err != nil {
 		return err
 	}
 
-	var serialized SerializedWallets
+	// Change gob.Register to use an exported type.
+	gob.Register(&elliptic.CurveParams{})
 	decoder := gob.NewDecoder(bytes.NewReader(fileContent))
-	err = decoder.Decode(&serialized)
+	err = decoder.Decode(&wallets)
 	if err != nil {
 		return err
 	}
 
-	wallets := make(map[string]*Wallet)
-	for addr, data := range serialized.Wallets {
-		wallet := &Wallet{}
-		wallet.LoadFromBytes(data.PrivateKey, data.PublicKey)
-		wallets[addr] = wallet
-	}
+	ws.Wallets = wallets.Wallets
 
-	ws.Wallets = wallets
 	return nil
 }
 
-func (ws *Wallets) SaveFile() {
-	serialized := SerializedWallets{
-		Wallets: make(map[string]SerializedWallet),
-	}
-
-	for addr, wallet := range ws.Wallets {
-		privKey, pubKey := wallet.Bytes()
-		serialized.Wallets[addr] = SerializedWallet{
-			PrivateKey: privKey,
-			PublicKey:  pubKey,
-		}
-	}
-
+func (ws *Wallets) SaveFile(nodeId string) {
 	var content bytes.Buffer
+	walletFile := fmt.Sprintf(walletFile, nodeId)
+
+	// Change gob.Register to use an exported type.
+	gob.Register(&elliptic.CurveParams{})
+
 	encoder := gob.NewEncoder(&content)
-	err := encoder.Encode(serialized)
+	err := encoder.Encode(ws)
 	if err != nil {
 		log.Panic(err)
 	}

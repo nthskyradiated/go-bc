@@ -6,6 +6,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/gob"
 	"log"
 	"math/big"
 
@@ -19,6 +20,12 @@ const (
 
 type Wallet struct {
 	PrivateKey ecdsa.PrivateKey
+	PublicKey  []byte
+}
+
+// WalletGob is used for custom gob encoding/decoding of Wallet.
+type WalletGob struct {
+	PrivateKey []byte
 	PublicKey  []byte
 }
 
@@ -96,4 +103,30 @@ func (w *Wallet) LoadFromBytes(privKey, pubKey []byte) {
 
 	w.PrivateKey = *priv
 	w.PublicKey = pubKey
+}
+
+// GobEncode encodes the Wallet into a byte slice.
+func (w *Wallet) GobEncode() ([]byte, error) {
+	var buf bytes.Buffer
+	encoder := gob.NewEncoder(&buf)
+	data := WalletGob{
+		PrivateKey: w.PrivateKey.D.Bytes(),
+		PublicKey:  w.PublicKey,
+	}
+	if err := encoder.Encode(data); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// GobDecode decodes the Wallet from a byte slice.
+func (w *Wallet) GobDecode(b []byte) error {
+	buf := bytes.NewBuffer(b)
+	decoder := gob.NewDecoder(buf)
+	var data WalletGob
+	if err := decoder.Decode(&data); err != nil {
+		return err
+	}
+	w.LoadFromBytes(data.PrivateKey, data.PublicKey)
+	return nil
 }

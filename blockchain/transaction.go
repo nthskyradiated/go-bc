@@ -119,25 +119,19 @@ func (tx *Transaction) Verify(prevTXs map[string]Transaction) bool {
 	return true
 }
 
+func DeserializeTransaction(data []byte) Transaction {
+	var transaction Transaction
 
-// func (tx *Transaction) SetID() {
-// 	var encoded bytes.Buffer
-// 	var hash [32]byte
-// 	encode := gob.NewEncoder(&encoded)
-// 	err := encode.Encode(tx)
-// 	HandleError(err)
-// 	hash = sha256.Sum256(encoded.Bytes())
-// 	tx.ID = hash[:]
-	
-// }
+	decoder := gob.NewDecoder(bytes.NewReader(data))
+	err := decoder.Decode(&transaction)
+	HandleError(err)
+	return transaction
+}
 
-func NewTransaction(from, to string, amount int, UTXO *UTXOSet) *Transaction {
+func NewTransaction(w *wallet.Wallet, to string, amount int, UTXO *UTXOSet) *Transaction {
 	var inputs []TxInput
 	var outputs []TxOutput
 
-	wallets, err := wallet.NewWallets()
-	HandleError(err)
-	w := wallets.GetWallet(from)
 	pubKeyHash := wallet.PublicKeyHash(w.PublicKey)
 
 	acc, validOutputs := UTXO.FindSpendableOutputs(pubKeyHash, amount)
@@ -154,6 +148,7 @@ func NewTransaction(from, to string, amount int, UTXO *UTXOSet) *Transaction {
 			inputs = append(inputs, input)
 		}
 	}
+	from := string(w.Address())
 	outputs = append(outputs, *NewTXOutput(amount, to))
 	if acc > amount {
 		outputs = append(outputs, *NewTXOutput(acc - amount, from))
